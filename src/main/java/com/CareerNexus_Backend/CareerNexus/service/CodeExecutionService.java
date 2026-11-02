@@ -33,7 +33,8 @@ public class CodeExecutionService {
     public CodeExecutionResponseDto executeCode(String language, String code, String stdin) {
         // 1. Prepare the File object
         String extension = getExtension(language);
-        CodeExecutionRequestDto.CodeFile file = new CodeExecutionRequestDto.CodeFile("index." + extension, code);
+        String filename = "java".equalsIgnoreCase(language) ? "Main.java" : "index." + extension;
+        CodeExecutionRequestDto.CodeFile file = new CodeExecutionRequestDto.CodeFile(filename, code);
 
         // 2. Prepare the Request Body
         CodeExecutionRequestDto requestBody = new CodeExecutionRequestDto(

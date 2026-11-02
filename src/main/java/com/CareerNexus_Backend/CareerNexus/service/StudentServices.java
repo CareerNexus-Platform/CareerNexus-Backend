@@ -140,7 +140,7 @@ public class StudentServices {
         Student studentDetails = studentRepository.findById(userId)
                 .orElseThrow(() -> {
                     logger.warn("Student profile not found for user ID: {}", userId);
-                    return new Exception("Student Profile not found for User ID: " + userId);
+                    return new ResourceNotFoundException("Complete your student profile to get started.");
                 });
 
         return new StudentDetailsDTO(studentDetails);

@@ -54,7 +54,7 @@ public class ApplicationService {
     public ApplicationDTO applyForJob(Long jobId, String studentUserId, MultipartFile resumeFile) throws Exception {
 
         JobPost jobPost = jobPostRepository.findById(jobId)
-                .orElseThrow(() -> new Exception("JobPost not found with ID: " + jobId));
+                .orElseThrow(() -> new ResourceNotFoundException("JobPost not found with ID: " + jobId));
 
 
         User student = userAuthRepository.findById(studentUserId)
@@ -67,6 +67,11 @@ public class ApplicationService {
             throw new IllegalArgumentException("Only users with 'STUDENT' role can apply for jobs.");
         }
 
+
+        if (jobPost.getApplicationDeadline() != null && jobPost.getApplicationDeadline().isBefore(java.time.LocalDate.now()))
+            throw new IllegalArgumentException("Applications for this role are closed.");
+        if (resumeFile != null && !resumeFile.isEmpty() && !"application/pdf".equalsIgnoreCase(resumeFile.getContentType()))
+            throw new IllegalArgumentException("Upload your resume as a PDF.");
 
         Optional<Application> existingApplication = applicationRepository.findByJobPost_IdAndStudent_UserId(jobId, studentUserId);
         if (existingApplication.isPresent()) {
@@ -177,6 +182,18 @@ public class ApplicationService {
     public JobApplicationCountDTO getCountApplicationByStudent(String userId){
 
         return  applicationRepository.findCount(userId);
+    }
+
+    public void requireReviewAccess(Long jobId, String reviewerId) {
+        User reviewer = userAuthRepository.findById(reviewerId).orElseThrow(() -> new ResourceNotFoundException("User not found."));
+        JobPost job = jobPostRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found."));
+        if (!"tpo".equalsIgnoreCase(reviewer.getRole()) && !job.getPostedBy().getUserId().equals(reviewerId))
+            throw new com.CareerNexus_Backend.CareerNexus.exceptions.UnauthorizedActionException("You can only review applications for your own jobs.");
+    }
+    public void requireCountAccess(String recruiterId, String reviewerId) {
+        User reviewer = userAuthRepository.findById(reviewerId).orElseThrow(() -> new ResourceNotFoundException("User not found."));
+        if (!"tpo".equalsIgnoreCase(reviewer.getRole()) && !reviewerId.equals(recruiterId))
+            throw new com.CareerNexus_Backend.CareerNexus.exceptions.UnauthorizedActionException("You can only review your own application counts.");
     }
 
 }

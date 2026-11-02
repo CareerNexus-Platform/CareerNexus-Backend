@@ -73,7 +73,7 @@ public class TpoService {
     @Transactional(readOnly = true)
     public TpoDetailsDTO getProfileData(String userId) {
         TPO tpoDetails = tpoRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Recruiter Profile not found for User ID: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("Complete your placement officer profile to get started."));
         return new TpoDetailsDTO(tpoDetails);
     }
 

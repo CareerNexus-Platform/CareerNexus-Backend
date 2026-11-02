@@ -1,0 +1,13 @@
+target/
+.mvn/
+mvnw
+mvnw.cmd
+.git/
+.gitignore
+.idea/
+.project
+.classpath
+.settings/
+.antigravityignore
+Dockerfile
+docker-compose.yml

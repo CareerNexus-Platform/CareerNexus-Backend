@@ -2,6 +2,7 @@ package com.CareerNexus_Backend.CareerNexus.service;
 
 import com.CareerNexus_Backend.CareerNexus.dto.*;
 import com.CareerNexus_Backend.CareerNexus.exceptions.ResourceNotFoundException;
+import com.CareerNexus_Backend.CareerNexus.exceptions.UnauthorizedActionException;
 import com.CareerNexus_Backend.CareerNexus.model.JobPost;
 import com.CareerNexus_Backend.CareerNexus.model.Recruiter;
 import com.CareerNexus_Backend.CareerNexus.model.User;
@@ -33,6 +34,7 @@ public class JobPostService {
 
         User user = userAuthRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
+        if (!"recruiter".equalsIgnoreCase(user.getRole())) throw new UnauthorizedActionException("Only recruiters can post jobs.");
         JobPost jobPost = convertDtoToEntity(jobPostDTO);
 
         jobPost.setPostedBy(user);
@@ -78,16 +80,17 @@ public class JobPostService {
     @Transactional(readOnly = true)
     public JobPostDTO getJobPostById(Long jobId) throws Exception {
         JobPost jobPost = jobPostRepository.findById(jobId)
-                .orElseThrow(() -> new Exception("Job Post not found with ID: " + jobId));
+                .orElseThrow(() -> new ResourceNotFoundException("Job Post not found with ID: " + jobId));
         return convertEntityToDto(jobPost);
     }
 
     @Transactional // Add transactional for write operations
     public JobPostDTO updateJobPost(Long jobId, JobPostDTO updatedJobPostDTO, String recruiterId) throws Exception {
         JobPost existingJobPost = jobPostRepository.findById(jobId)
-                .orElseThrow(() -> new Exception("Job Post not found with ID: " + jobId));
+                .orElseThrow(() -> new ResourceNotFoundException("Job Post not found with ID: " + jobId));
 
 
+        requireOwner(existingJobPost, recruiterId);
         existingJobPost.setCompanyName(updatedJobPostDTO.getCompanyName());
         existingJobPost.setJobTitle(updatedJobPostDTO.getJobTitle());
         existingJobPost.setSalaryPackage(updatedJobPostDTO.getSalaryPackage());
@@ -102,8 +105,14 @@ public class JobPostService {
     @Transactional
     public void deleteJobPost(Long jobId, String recruiterId) throws Exception {
         JobPost jobPost = jobPostRepository.findById(jobId)
-                .orElseThrow(() -> new Exception("Job Post not found with ID: " + jobId));
+                .orElseThrow(() -> new ResourceNotFoundException("Job Post not found with ID: " + jobId));
+        requireOwner(jobPost, recruiterId);
         jobPostRepository.delete(jobPost);
+    }
+
+    private void requireOwner(JobPost job, String recruiterId) {
+        if (job.getPostedBy() == null || !job.getPostedBy().getUserId().equals(recruiterId))
+            throw new UnauthorizedActionException("You can only change your own job postings.");
     }
 
     private JobPost convertDtoToEntity(JobPostDTO dto) {

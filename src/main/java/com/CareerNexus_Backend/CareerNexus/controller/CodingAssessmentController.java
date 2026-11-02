@@ -36,6 +36,11 @@ public class CodingAssessmentController {
         }
     }
 
+    @GetMapping("/{id}/results")
+    public ResponseEntity<?> getResults(@PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(codingAssessmentService.getRoundResults(id, authentication.getName()));
+    }
+
     @GetMapping("/all")
     public ResponseEntity<List<CodingAssessment>> getAllAssessments() {
         return ResponseEntity.ok(assessmentRepository.findAllByOrderByCreatedAtDesc());

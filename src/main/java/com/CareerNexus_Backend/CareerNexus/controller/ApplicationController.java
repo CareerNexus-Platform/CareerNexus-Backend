@@ -45,7 +45,8 @@ public class ApplicationController {
     }
 
     @GetMapping("/job/{jobId}")
-    public ResponseEntity<List<ApplicationDTO>> getApplicationsForJob(@PathVariable Long jobId) {
+    public ResponseEntity<List<ApplicationDTO>> getApplicationsForJob(@PathVariable Long jobId, Authentication authentication) {
+        applicationService.requireReviewAccess(jobId, authentication.getName());
         try {
             List<ApplicationDTO> applications = applicationService.getApplicationsForJob(jobId);
             return ResponseEntity.ok(applications);
@@ -60,7 +61,8 @@ public class ApplicationController {
 
 
     @GetMapping("/counts/per-job/by-recruiter/{recruiterId}")
-    public ResponseEntity<List<JobApplicationCountDTO>> getApplicationCountsPerJobForRecruiter(@PathVariable String recruiterId) {
+    public ResponseEntity<List<JobApplicationCountDTO>> getApplicationCountsPerJobForRecruiter(@PathVariable String recruiterId, Authentication authentication) {
+        applicationService.requireCountAccess(recruiterId, authentication.getName());
         try {
             List<JobApplicationCountDTO> counts = applicationService.getApplicationCountsPerJobForRecruiter(recruiterId);
             return ResponseEntity.ok(counts);
@@ -73,7 +75,8 @@ public class ApplicationController {
         }
     }
   @GetMapping("/student/applications/{id}")
-    public List<StudentsApplicationsDTO> getStudentApplicationsForJobId(@PathVariable  Long id){
+    public List<StudentsApplicationsDTO> getStudentApplicationsForJobId(@PathVariable Long id, Authentication authentication){
+        applicationService.requireReviewAccess(id, authentication.getName());
         return applicationService.getStudentApplicationsForJobId(id);
     }
 

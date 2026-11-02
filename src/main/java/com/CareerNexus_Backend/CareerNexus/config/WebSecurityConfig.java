@@ -31,6 +31,9 @@ public class WebSecurityConfig {
     @Autowired
     private JwtFilter jwtFilter;
 
+    @org.springframework.beans.factory.annotation.Value("${frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         System.out.println("Configuring Security Filter Chain...");
@@ -42,11 +45,31 @@ public class WebSecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // 2. Disable CSRF for stateless APIs (common for REST APIs, but understand implications)
                 .csrf(csrf -> csrf.disable())
+                .exceptionHandling(errors -> errors.authenticationEntryPoint((request, response, exception) -> {
+                    response.setStatus(401);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"status\":401,\"error\":\"Sign in to continue.\"}");
+                }).accessDeniedHandler((request, response, exception) -> {
+                    response.setStatus(403);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"status\":403,\"error\":\"You do not have access to this action.\"}");
+                }))
                 // 3. Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/ws/editor/**").permitAll()
+                        .requestMatchers("/api/student/profile", "/api/student/change-password").hasRole("student")
+                        .requestMatchers("/api/recruiter/profile").hasRole("recruiter")
+                        .requestMatchers("/api/tpo/**").hasRole("tpo")
+                        .requestMatchers("/api/admin/**").hasRole("admin")
+                        .requestMatchers("/api/jobs/post").hasRole("recruiter")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/jobs/*").hasRole("recruiter")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/jobs/*").hasRole("recruiter")
+                        .requestMatchers("/api/applications/apply/**", "/api/applications/my-applications", "/api/student/code/**").hasRole("student")
+                        .requestMatchers("/api/applications/counts/**", "/api/applications/job/**", "/api/applications/student/applications/**").hasAnyRole("recruiter", "tpo")
+                        .requestMatchers("/api/coding-exam/tpo/create", "/api/coding-exam/all", "/api/coding-exam/*/results", "/api/exam/recruiter/**").hasAnyRole("recruiter", "tpo")
+                        .requestMatchers("/api/coding-exam/student/**", "/api/coding-exam/*/start", "/api/coding-exam/*/submit", "/api/exam/*/start", "/api/exam/*/submit").hasRole("student")
                         .anyRequest().authenticated() // All other requests require authentication
                 )
                 // 4. Configure session management to be stateless (important for JWTs)
@@ -78,6 +101,9 @@ public class WebSecurityConfig {
 
         // Allow specified origin for development. In production, specify your frontend's URL(s).
         config.addAllowedOrigin("http://localhost:5173");
+        java.net.URI frontend = java.net.URI.create(frontendUrl);
+        String configuredOrigin = frontend.getScheme() + "://" + frontend.getAuthority();
+        if (!configuredOrigin.equals("http://localhost:5173")) config.addAllowedOrigin(configuredOrigin);
         config.addAllowedOrigin("https://3fw2nnrf-5173.inc1.devtunnels.ms");
         // Your React frontend's development URL
 

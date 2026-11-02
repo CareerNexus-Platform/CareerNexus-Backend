@@ -60,7 +60,7 @@ public class EmailService {
                     <br>
                     <p>Regards,<br><b>Career Nexus Team</b></p>
                 </div>
-                """.formatted(studentName, jobTitle,roundName, slotStart, slotEnd, frontendUrl + "/student/" + studentId + "/test/" + assessmentId);
+                """.formatted(studentName, jobTitle,roundName, slotStart, slotEnd, frontendUrl.replaceAll("/+$", "") + "/student/" + studentId + "/test/" + assessmentId);
 
             helper.setText(htmlBody, true);
             mailSender.send(message);
@@ -83,7 +83,7 @@ public class EmailService {
             helper.setSubject("Application Received: " + jobTitle + " at " + companyName);
 
             // Dynamic frontend link based on environment
-            String applicationsLink = frontendUrl + "/student/" + studentName + "/applications";
+            String applicationsLink = frontendUrl.replaceAll("/+$", "") + "/student/" + studentName + "/applications";
 
             String htmlBody = """
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
@@ -147,7 +147,7 @@ public class EmailService {
                 default -> "your comprehensive career development platform.";
             };
 
-            String loginUrl = frontendUrl + role+"/login";
+            String loginUrl = frontendUrl.replaceAll("/+$", "") + "/" + ("admin".equalsIgnoreCase(role) ? "tpo" : role) + "/login";
 
             String htmlBody = """
                 <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">

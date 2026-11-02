@@ -26,7 +26,7 @@ public class ResourceController {
 
     // ── Upload ───────────────────────────────────────────────────────────────
 
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE})
     public ResponseEntity<?> uploadResource(
             @RequestParam(value = "file", required = false) MultipartFile file,
             @RequestParam("title") String title,
@@ -36,16 +36,18 @@ public class ResourceController {
             @RequestParam("regulation") String regulation,
             @RequestParam("branch") String branch,
             @RequestParam(value = "resourceLink", required = false) String resourceLink,
-            @RequestParam("userId") String userId) {
+            @RequestParam(value = "userId", required = false) String userId, org.springframework.security.core.Authentication authentication) {
 
         try {
             ResourceResponseDTO response = resourceService.uploadResource(
                     file, title, description,
                     year, semester, regulation, branch,
-                    resourceLink, userId);
+                    resourceLink, authentication.getName());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
+        } catch (com.CareerNexus_Backend.CareerNexus.exceptions.UnauthorizedActionException | com.CareerNexus_Backend.CareerNexus.exceptions.ResourceNotFoundException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
@@ -79,9 +81,11 @@ public class ResourceController {
     // ── Get My Uploads ────────────────────────────────────────────────────────
 
     @GetMapping("/my-uploads")
-    public ResponseEntity<?> getMyUploads(@RequestParam("userId") String userId) {
+    public ResponseEntity<?> getMyUploads(@RequestParam(value = "userId", required = false) String userId, org.springframework.security.core.Authentication authentication) {
         try {
-            return ResponseEntity.ok(resourceService.getMyUploads(userId));
+            return ResponseEntity.ok(resourceService.getMyUploads(authentication.getName()));
+        } catch (com.CareerNexus_Backend.CareerNexus.exceptions.UnauthorizedActionException | com.CareerNexus_Backend.CareerNexus.exceptions.ResourceNotFoundException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
@@ -94,12 +98,14 @@ public class ResourceController {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteResource(
             @PathVariable Long id,
-            @RequestParam("userId") String userId) {
+            @RequestParam(value = "userId", required = false) String userId, org.springframework.security.core.Authentication authentication) {
 
         try {
-            resourceService.deleteResource(id, userId);
+            resourceService.deleteResource(id, authentication.getName());
             return ResponseEntity.noContent().build();
 
+        } catch (com.CareerNexus_Backend.CareerNexus.exceptions.UnauthorizedActionException | com.CareerNexus_Backend.CareerNexus.exceptions.ResourceNotFoundException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)

@@ -43,7 +43,6 @@ public class AdminController {
             // 2. Prepare user for registration
             String originalPassword = userRequest.getPassword(); // Should be null or empty from frontend
             userRequest.setPassword(rawPassword);
-            System.out.println(rawPassword);
             
             // 3. Register user (hashes the password)
             User registeredUser = userAuthService.registerUser(userRequest);

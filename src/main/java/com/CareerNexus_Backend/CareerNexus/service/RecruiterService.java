@@ -62,12 +62,12 @@ public class RecruiterService {
             recruiterDetails.setPhone(recruiterDetailsDTO.getPhone());
             try {
                 // Upload new image to Supabase
-                String imageUrl = supabaseStorageService.uploadImage(img);
+                String imageUrl = img != null && !img.isEmpty() ? supabaseStorageService.uploadImage(img) : null;
                 
                 // Optionally delete old image if it's a Supabase URL
-                supabaseStorageService.deleteImage(recruiterDetails.getImg_loc());
+                if (imageUrl != null) supabaseStorageService.deleteImage(recruiterDetails.getImg_loc());
                 
-                recruiterDetails.setImg_loc(imageUrl);
+                if (imageUrl != null) recruiterDetails.setImg_loc(imageUrl);
                 logger.info("Updated profile image for recruiter: {} in Supabase", userId);
             } catch (IOException e) {
                 logger.error("Failed to update profile image for recruiter: {} in Supabase. Error: {}", userId, e.getMessage());
@@ -76,7 +76,7 @@ public class RecruiterService {
 
         } else {
             try {
-                String imageUrl = supabaseStorageService.uploadImage(img);
+                String imageUrl = img != null && !img.isEmpty() ? supabaseStorageService.uploadImage(img) : null;
                 logger.info("Saved new profile image for recruiter: {} in Supabase", userId);
 
                 recruiterDetails = new Recruiter(
@@ -104,7 +104,7 @@ public class RecruiterService {
         Recruiter recruiterDetails = recruiterDetailsRepository.findById(userId)
                 .orElseThrow(() -> {
                     logger.warn("Recruiter profile not found for user ID: {}", userId);
-                    return new Exception("Recruiter Profile not found for User ID: " + userId);
+                    return new ResourceNotFoundException("Complete your recruiter profile to get started.");
                 });
         return new RecruiterDetailsDTO(recruiterDetails);
     }

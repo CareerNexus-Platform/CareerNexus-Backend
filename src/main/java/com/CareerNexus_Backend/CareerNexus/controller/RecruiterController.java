@@ -19,7 +19,7 @@ public class RecruiterController {
     private RecruiterService recruiterService;
 
     @PostMapping("/profile")
-    public RecruiterDetailsDTO Profile( @RequestPart("imageFile") MultipartFile img,@RequestPart("data") RecruiterDetailsDTO RecruiterDetails, Authentication authentication) throws Exception {
+    public RecruiterDetailsDTO Profile( @RequestPart(value = "imageFile", required = false) MultipartFile img,@RequestPart("data") RecruiterDetailsDTO RecruiterDetails, Authentication authentication) throws Exception {
         String userId = authentication.getName();
         logger.info("Received request to create/update profile for recruiter: {}", userId);
         return recruiterService.createOrUpdateProfile(userId,RecruiterDetails,img);

@@ -20,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -130,18 +132,18 @@ public class UserAuthServiceImplementation implements UserAuthService {
 
             // Check if the current user is a 'student' and if they are missing a profile.
             if (currentRole.equals("student") && studentServices.isProfileMissing(user)) {
-                responseBody.put("router", "/profile?page=data&userId=" + user.getUserId() + "&email=" + userEmail);
+                responseBody.put("router", "/profile?page=data&userId=" + URLEncoder.encode(user.getUserId(), StandardCharsets.UTF_8) + "&email=" + URLEncoder.encode(userEmail, StandardCharsets.UTF_8));
                 return ResponseEntity.ok(responseBody);
             }
             // Else, check if the current user is a 'recruiter' and if they are missing a profile.
             else if (currentRole.equals("recruiter") && recruiterService.isProfileMissing(user)) {
                 responseBody.put("msg", "redirecting to profile");
-                responseBody.put("router", "/profile?page=data&userId=" + user.getUserId() + "&email=" + userEmail);
+                responseBody.put("router", "/profile?page=data&userId=" + URLEncoder.encode(user.getUserId(), StandardCharsets.UTF_8) + "&email=" + URLEncoder.encode(userEmail, StandardCharsets.UTF_8));
                 return ResponseEntity.ok(responseBody);
             }
             else if (currentRole.equals("tpo") && tpoService.isProfileMissing(user)) {
                 responseBody.put("msg", "redirecting to profile");
-                responseBody.put("router", "/profile?page=data&userId=" + user.getUserId() + "&email=" + userEmail);
+                responseBody.put("router", "/profile?page=data&userId=" + URLEncoder.encode(user.getUserId(), StandardCharsets.UTF_8) + "&email=" + URLEncoder.encode(userEmail, StandardCharsets.UTF_8));
                 return ResponseEntity.ok(responseBody);
             }
 

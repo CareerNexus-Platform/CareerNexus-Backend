@@ -45,11 +45,13 @@ public class QuestionExtractionService {
             }
 
             System.err.println("FastAPI returned non-OK status: " + response.getStatusCode());
-            return getMockResponse();
+            throw new com.CareerNexus_Backend.CareerNexus.exceptions.ExternalServiceUnavailableException("Question extraction is unavailable. No assessment was created.");
 
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             System.err.println("Error calling FastAPI: " + e.getMessage());
-            return getMockResponse();
+            throw new com.CareerNexus_Backend.CareerNexus.exceptions.ExternalServiceUnavailableException("Question extraction is unavailable. Start the assessment extraction service and try again.", e);
         }
     }
 
@@ -69,7 +71,7 @@ public class QuestionExtractionService {
 
             if (!root.has("questions") || !root.has("answers")) {
                 System.err.println("Invalid JSON structure from FastAPI");
-                return getMockResponse();
+                throw new IllegalArgumentException("The document could not be read as multiple-choice questions.");
             }
 
             ArrayNode questions = (ArrayNode) root.get("questions");
@@ -87,22 +89,17 @@ public class QuestionExtractionService {
             ((com.fasterxml.jackson.databind.node.ObjectNode) root)
                     .set("questions", validQuestions);
 
+            if (validQuestions.isEmpty() || !root.get("answers").isArray() || root.get("answers").isEmpty())
+                throw new IllegalArgumentException("No complete questions and answers were found. Check the PDF and try again.");
+
             return objectMapper
                     .writerWithDefaultPrettyPrinter()
                     .writeValueAsString(root);
 
         } catch (Exception e) {
             System.err.println("JSON Parsing Error: " + e.getMessage());
-            return getMockResponse();
+            throw new IllegalArgumentException("No complete questions and answers were found. Check the PDF and try again.", e);
         }
     }
 
-    private String getMockResponse() {
-        return """
-        {
-          "questions": [],
-          "answers": []
-        }
-        """;
-    }
 }

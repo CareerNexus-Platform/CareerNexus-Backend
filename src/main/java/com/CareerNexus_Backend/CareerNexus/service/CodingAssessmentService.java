@@ -50,12 +50,26 @@ public class CodingAssessmentService {
         User tpo = userRepository.findById(tpoId)
                 .orElseThrow(() -> new ResourceNotFoundException("TPO User not found."));
 
+        if (requestDto.getAssessmentName() == null || requestDto.getAssessmentName().isBlank()
+                || requestDto.getStartTime() == null || requestDto.getEndTime() == null
+                || !requestDto.getEndTime().isAfter(requestDto.getStartTime()))
+            throw new IllegalArgumentException("Add an assessment name and a valid start/end time.");
+        if (requestDto.getQuestions() == null || requestDto.getQuestions().isEmpty())
+            throw new IllegalArgumentException("Add at least one question.");
+        for (CodingQuestionDto question : requestDto.getQuestions()) {
+            if (question.getTitle() == null || question.getTitle().isBlank() || question.getPoints() <= 0
+                    || question.getTestCases() == null || question.getTestCases().isEmpty())
+                throw new IllegalArgumentException("Each question needs a title, positive points, and a test case.");
+        }
         JobPost jobPost = null;
         if (requestDto.getJobPostId() != null) {
             jobPost = jobPostRepository.findById(requestDto.getJobPostId())
                     .orElseThrow(() -> new ResourceNotFoundException("JobPost not found."));
         }
 
+        if ("recruiter".equalsIgnoreCase(tpo.getRole()) && (jobPost == null
+                || !jobPost.getPostedBy().getUserId().equals(tpoId)))
+            throw new IllegalArgumentException("Recruiters can only configure rounds for their own jobs.");
         // 1. Create top-level Assessment
         CodingAssessment assessment = new CodingAssessment(
                 requestDto.getAssessmentName(),
@@ -107,6 +121,7 @@ public class CodingAssessmentService {
         CodingAssessment assessment = assessmentRepository.findById(assessmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Coding Assessment not found."));
 
+        requireAssessmentAccess(assessment, studentId);
         List<CodingQuestion> questions = questionRepository.findByCodingAssessmentId(assessmentId);
         
         List<StudentCodingQuestionDto> questionDtos = questions.stream().map(q -> {
@@ -163,14 +178,21 @@ public class CodingAssessmentService {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found."));
 
+        requireAssessmentAccess(assessment, studentId);
+        if (resultRepository.findByStudent_UserIdAndAssessment_Id(studentId, assessmentId).isPresent())
+            throw new IllegalArgumentException("You have already submitted this assessment.");
+        if (submissionDto.getSubmissions() == null || submissionDto.getSubmissions().isEmpty())
+            throw new IllegalArgumentException("Add code for at least one question before submitting.");
+        java.util.Set<Long> submittedIds = new java.util.HashSet<>();
         int totalScore = 0;
-        int maxScore = 0;
+        int maxScore = questionRepository.findByCodingAssessmentId(assessmentId).stream().mapToInt(CodingQuestion::getPoints).sum();
 
         for (CodeSubmissionRequestDto.QuestionSubmission sub : submissionDto.getSubmissions()) {
             CodingQuestion question = questionRepository.findById(sub.getQuestionId())
                     .orElseThrow(() -> new ResourceNotFoundException("Question not found."));
             
-            maxScore += question.getPoints();
+            if (!question.getCodingAssessment().getId().equals(assessmentId) || !submittedIds.add(question.getId()))
+                throw new IllegalArgumentException("Submit each question from this assessment only once.");
 
             List<TestCase> allTestCases = testCaseRepository.findByCodingQuestionId(question.getId());
             
@@ -185,7 +207,7 @@ public class CodingAssessmentService {
                         totalScore += tc.getMarks();
                     }
                 } catch (Exception e) {
-                    System.err.println("Error executing test case " + tc.getId() + ": " + e.getMessage());
+                    throw new com.CareerNexus_Backend.CareerNexus.exceptions.ExternalServiceUnavailableException("Code execution is unavailable. Your assessment has not been submitted; please try again.", e);
                 }
             }
         }
@@ -255,4 +277,32 @@ public class CodingAssessmentService {
 
         return dashboard;
     }
+    private void requireAssessmentAccess(CodingAssessment assessment, String studentId) {
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(assessment.getStartTime())) throw new IllegalArgumentException("This assessment has not started yet.");
+        if (now.isAfter(assessment.getEndTime())) throw new IllegalArgumentException("The assessment window has closed.");
+        if (assessment.getJobPost() != null && applicationRepository.findByJobPost_IdAndStudent_UserId(assessment.getJobPost().getId(), studentId).isEmpty())
+            throw new IllegalArgumentException("Apply for this role before opening its assessment.");
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, java.util.List<java.util.Map<String, Object>>> getRoundResults(Long assessmentId, String reviewerId) {
+        CodingAssessment assessment = assessmentRepository.findById(assessmentId).orElseThrow(() -> new ResourceNotFoundException("Coding assessment not found."));
+        User reviewer = userRepository.findById(reviewerId).orElseThrow(() -> new ResourceNotFoundException("User not found."));
+        if (!"tpo".equalsIgnoreCase(reviewer.getRole()) && !assessment.getCreatedBy().getUserId().equals(reviewerId))
+            throw new com.CareerNexus_Backend.CareerNexus.exceptions.UnauthorizedActionException("You can only review your own coding rounds.");
+        java.util.Map<String, java.util.List<java.util.Map<String, Object>>> groups = new java.util.LinkedHashMap<>();
+        groups.put("passed", new java.util.ArrayList<>()); groups.put("failed", new java.util.ArrayList<>()); groups.put("pending", new java.util.ArrayList<>());
+        if (assessment.getJobPost() == null) return groups;
+        for (Application app : applicationRepository.findByJobPost_Id(assessment.getJobPost().getId())) {
+            CodingAssessmentResult result = resultRepository.findByStudent_UserIdAndAssessment_Id(app.getStudent().getUserId(), assessmentId).orElse(null);
+            java.util.Map<String, Object> row = new java.util.HashMap<>();
+            row.put("studentUserId", app.getStudent().getUserId()); row.put("studentEmail", app.getStudent().getEmail()); row.put("applicationStatus", app.getStatus());
+            row.put("score", result == null ? null : result.getTotalScore()); row.put("totalQuestions", result == null ? null : result.getMaxScore());
+            String group = result == null ? "pending" : result.getTotalScore() >= (assessment.getMinMarks() == null ? 0 : assessment.getMinMarks()) ? "passed" : "failed";
+            groups.get(group).add(row);
+        }
+        return groups;
+    }
+
 }

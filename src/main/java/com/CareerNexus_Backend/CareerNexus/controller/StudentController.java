@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -31,35 +32,29 @@ public class StudentController {
 
     // ── Create or Update Profile ──────────────────────────────────────────────
 
-    @PostMapping("/profile")
+    @PostMapping(value = "/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<StudentDetailsDTO> profile(
             @RequestPart("data") StudentDetailsDTO studentDetailsDTO,
-            @RequestPart("imageFile") MultipartFile img,
-            Authentication authentication) {
-        try {
-            String userId = authentication.getName();
-            StudentDetailsDTO createdOrUpdatedProfile = studentServices
-                    .createOrUpdateProfile(studentDetailsDTO, userId, img);
-            return new ResponseEntity<>(createdOrUpdatedProfile, HttpStatus.CREATED);
-        } catch (Exception e) {
-            log.error("Error creating/updating student profile for user: {}",
-                    authentication.getName(), e);
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+            @RequestPart(value = "imageFile", required = false) MultipartFile img,
+            Authentication authentication) throws Exception {
+        return ResponseEntity.status(HttpStatus.CREATED).body(studentServices
+                .createOrUpdateProfile(studentDetailsDTO, authentication.getName(), img));
+    }
+
+    @PostMapping(value = "/profile", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<StudentDetailsDTO> profileJson(
+            @RequestBody StudentDetailsDTO studentDetailsDTO,
+            Authentication authentication) throws Exception {
+        return ResponseEntity.ok(studentServices.createOrUpdateProfile(
+                studentDetailsDTO, authentication.getName(), null));
     }
 
     // ── Get Profile ───────────────────────────────────────────────────────────
 
     @GetMapping("/profile")
     public ResponseEntity<StudentDetailsDTO> getStudentProfile(
-            Authentication authentication) {
-        String userId = authentication.getName();
-        try {
-            StudentDetailsDTO profileData = studentServices.getProfileData(userId);
-            return ResponseEntity.ok(profileData);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+            Authentication authentication) throws Exception {
+        return ResponseEntity.ok(studentServices.getProfileData(authentication.getName()));
     }
 
     // ── Companies Visited ─────────────────────────────────────────────────────

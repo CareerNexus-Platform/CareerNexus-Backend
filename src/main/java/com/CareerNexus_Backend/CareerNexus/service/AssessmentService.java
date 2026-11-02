@@ -78,6 +78,10 @@ public class AssessmentService {
         JobPost jobPost = jobPostRepository.findById(assessmentRoundDto.getJobPostId())
                 .orElseThrow(() -> new ResourceNotFoundException("Job post not found with Id: " + assessmentRoundDto.getJobPostId()));
 
+        if (!jobPost.getPostedBy().getUserId().equals(user.getUserId()))
+            throw new com.CareerNexus_Backend.CareerNexus.exceptions.UnauthorizedActionException("You can only configure assessments for your own jobs.");
+        if (assessmentRoundDto.getStartTime() == null || assessmentRoundDto.getEndTime() == null || !assessmentRoundDto.getEndTime().isAfter(assessmentRoundDto.getStartTime()))
+            throw new IllegalArgumentException("The end time must be after the start time.");
         // Upload files and get their stored paths.
         String questionPdfPath = uploadFileHandler.uploadFileHandler(questionPdf, assessmentRoundDto.getCreatedByUserId(), assessmentRoundDto.getJobPostId());
 
@@ -146,7 +150,17 @@ public class AssessmentService {
 
     public List<AssessmentRoundDto> getAssessmentConfigurationData(String recruiterId, Long jobId) {
         logger.info("Fetching assessment configuration for recruiter: {} and job ID: {}", recruiterId, jobId);
-        return assessmentRepository.findAssessmentRoundsByJobId(jobId);
+        JobPost job = jobPostRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found."));
+        User reviewer = userAuthRepository.findById(recruiterId).orElseThrow(() -> new ResourceNotFoundException("User not found."));
+        if (!"tpo".equalsIgnoreCase(reviewer.getRole()) && !job.getPostedBy().getUserId().equals(recruiterId))
+            throw new com.CareerNexus_Backend.CareerNexus.exceptions.UnauthorizedActionException("You can only review your own recruitment rounds.");
+        List<AssessmentRoundDto> rounds = new java.util.ArrayList<>(assessmentRepository.findAssessmentRoundsByJobId(jobId));
+        rounds.forEach(round -> round.setType("MCQ"));
+        codingAssessmentRepository.findByJobPost_Id(jobId).forEach(ar -> {
+            AssessmentRoundDto dto = new AssessmentRoundDto(ar.getCreatedBy().getUserId(), jobId, ar.getAssessmentName(), ar.getStartTime(), ar.getEndTime(), ar.getMinMarks() == null ? 0 : ar.getMinMarks(), ar.getId());
+            dto.setType("CODING"); rounds.add(dto);
+        });
+        return rounds;
     }
 
     public List<AssessmentRoundDto> getAssessmentConfigurationForJobId(Long jobId, String studentId) {
@@ -192,6 +206,8 @@ public class AssessmentService {
         AssessmentRound assessment = assessmentRepository.findById(assessmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assessment Round not found with ID: " + assessmentId));
 
+        if (applicationRepository.findByJobPost_IdAndStudent_UserId(assessment.getJobPost().getId(), studentId).isEmpty())
+            throw new IllegalArgumentException("Apply for this role before opening its assessment.");
         // 2. Check for existing attempt
         User user = userAuthRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + studentId));
@@ -258,6 +274,8 @@ public class AssessmentService {
         AssessmentRound assessment = assessmentRepository.findById(assessmentId)
                 .orElseThrow(() -> new RuntimeException("Assessment not found"));
 
+        if (applicationRepository.findByJobPost_IdAndStudent_UserId(assessment.getJobPost().getId(), studentUserId).isEmpty())
+            throw new IllegalArgumentException("Apply for this role before submitting its assessment.");
         // 1. Decrypt Ground Truth (Answers) from its separate column
         String decryptedAnswers = encryptionService.decrypt(assessment.getEncryptedAnswers(), assessment.getEncryptionKey());
         List<AnswerDto> correctAnswers = objectMapper.readValue(decryptedAnswers, new TypeReference<List<AnswerDto>>() {});
@@ -283,7 +301,9 @@ public class AssessmentService {
         int score = 0;
         logger.info("Evaluating submission for assessment {}. Submitted answers count: {}", assessmentId, studentAnswers.size());
 
+        java.util.Set<Integer> answeredQuestions = new java.util.HashSet<>();
         for (StudentAnswerSubmissionDto sub : studentAnswers) {
+            if (sub != null && !answeredQuestions.add(sub.getQueNo())) throw new IllegalArgumentException("Answer each question only once.");
             if (sub == null || sub.getQueNo() <= 0 || sub.getOption() == null) {
                 logger.warn("Skipping invalid answer submission: {}", sub);
                 continue;

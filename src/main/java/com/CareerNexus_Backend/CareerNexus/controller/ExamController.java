@@ -28,7 +28,8 @@ public class ExamController {
 
 
     @PostMapping("/recruiter/mcq/assessment")
-    public ResponseEntity<String> AssessmentConfiguration(@RequestPart("roundDetails") AssessmentRoundDto assessmentRoundDto, @RequestPart("questionPdf") MultipartFile questionPdf) throws Exception {
+    public ResponseEntity<String> AssessmentConfiguration(@RequestPart("roundDetails") AssessmentRoundDto assessmentRoundDto, @RequestPart("questionPdf") MultipartFile questionPdf, Authentication authentication) throws Exception {
+        assessmentRoundDto.setCreatedByUserId(authentication.getName());
         System.out.println(assessmentRoundDto.getMin_marks());
         return  assessmentService.assessmentConfiguration(assessmentRoundDto,questionPdf);
     }
