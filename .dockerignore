@@ -1,13 +1,45 @@
+# ── Build artifacts ─────────────────────────────────────────
 target/
+
+# ── Maven wrapper (not needed inside Docker, uses Maven image) ─
 .mvn/
 mvnw
 mvnw.cmd
+
+# ── Git ──────────────────────────────────────────────────────
 .git/
 .gitignore
+.gitattributes
+
+# ── IDE files ────────────────────────────────────────────────
 .idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
 .project
 .classpath
 .settings/
-.antigravityignore
+.springBeans
+.sts4-cache
+
+# ── Secrets & credentials — NEVER bake into image ───────────
+src/main/resources/application.properties
+src/main/resources/application-local.properties
+src/main/resources/gcp-credentials.json
+*.env
+.env
+.env.*
+
+# ── Docker files themselves ──────────────────────────────────
 Dockerfile
-docker-compose.yml
+docker-compose*.yml
+.dockerignore
+
+# ── Local upload directories ─────────────────────────────────
+static/uploads/
+uploads/
+
+# ── Docs ─────────────────────────────────────────────────────
+HELP.md
+README.md
